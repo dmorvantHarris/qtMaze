@@ -1,0 +1,122 @@
+#include "helper.h"
+#include <stdlib.h>
+#include <stdio.h>
+
+#include <QPainter>
+#include <QPaintEvent>
+#include <QWidget>
+
+
+
+Helper::Helper()
+{
+    QLinearGradient gradient(QPointF(50, -20), QPointF(80, 20));
+    gradient.setColorAt(0.0, Qt::white);
+    gradient.setColorAt(1.0, QColor(0xff, 0xff, 0xff));
+
+    background = QBrush(QColor(0, 0, 0));
+    circleBrush = QBrush(gradient);
+    circlePen = QPen(Qt::black);
+    circlePen.setWidth(1);
+    textPen = QPen(Qt::white);
+    textFont.setPixelSize(50);
+}
+
+void Helper::paint(QPainter *painter, QPaintEvent *event, int elapsed, short *isFirst, Point *points, Vel *velocitys)
+{
+    painter->fillRect(event->rect(), background);
+    //painter->translate(300, 300);
+
+    painter->save();
+    painter->setBrush(circleBrush);
+    painter->setPen(circlePen);
+    //painter->rotate(elapsed * 0.030);
+
+   /* qreal r = elapsed / 1000.0;
+    int n = 30;
+    for (int i = 0; i < n; ++i) {
+        painter->rotate(30);
+        qreal factor = (i + r) / n;
+        qreal radius = 0 + 120.0 * factor;
+        qreal circleRadius = 1 + factor * 20;
+        painter->drawEllipse(QRectF(radius, -circleRadius,
+                                    circleRadius * 2, circleRadius * 2));
+    }*/
+  if(*isFirst)
+  {
+    printf("First loop\n"); 
+    for (int i=0; i<500; i++)
+    {
+      float tmpx = rand() % 590;
+      float tmpy = rand() % 590;
+      //float tmpvx = rand() % 10 + 1;
+      //float tmpvy = rand() % 10 + 1;
+      float tmpvx = 0;
+      float tmpvy = 0;
+      int w = (rand() % 50);
+      int h = (rand() % 50);
+      if (tmpx + w >= 600)
+         w = 5;
+      if (tmpy + h >= 600)
+         h = 5;
+      Point tmp_point;
+      Vel tmp_vel;
+      tmp_point.x = tmpx;
+      tmp_point.y = tmpy;
+      tmp_vel.x = tmpvx;
+      tmp_vel.y = tmpvy;
+      memcpy(&points[i], &tmp_point, sizeof(Point));
+      memcpy(&velocitys[i], &tmp_vel, sizeof(Vel));
+    }
+    *isFirst = 0;
+  } 
+   
+    float wind = (rand()%9 - 4)/(float)(rand()%10+1);
+    for(int i=0; i < 500; i++)
+    {
+      move(&points[i], &velocitys[i]);
+      velocitys[i].x += wind;
+      velocitys[i].y += wind;
+      //velocitys[i].x += (rand()%5 - 2)/(float)10;
+      //velocitys[i].y += (rand()%5 - 2)/(float)10;
+      painter->drawRect((int)points[i].x, (int)points[i].y, 5, 5);
+    }
+    painter->restore();
+
+    painter->setPen(textPen);
+    painter->setFont(textFont);
+    //painter->drawText(QRect(-50, -50, 100, 100), Qt::AlignCenter, QStringLiteral("Qt"));
+}
+
+void Helper::move(Point *p, Vel *v)
+{
+  //printf("%d %d\n",v->x,v->y);
+  p->x = p->x + v->x; 
+  if(p->x >= 600 || p->x < 0)
+  {
+    v->x = -v->x + v->x*0.5;
+    if(p->x >= 600)
+    {
+      p->x = 600;
+    }
+    if(p->x < 0 )
+    {
+      p->x = 0;
+    }
+  }
+  
+  
+  p->y = p->y + v->y; 
+  if(p->y >= 600 || p->y < 0)
+  {
+    v->y = -v->y + v->y*0.5;
+    if(p->y >= 600)
+    {
+      p->y = 600;
+    }
+    if(p->y < 0 )
+    {
+      p->y = 0;
+    }
+  }
+}
