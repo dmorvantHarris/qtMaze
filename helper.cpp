@@ -4,11 +4,13 @@
 #include <stack>
 #include <unistd.h>
 #include <time.h>
+#include <malloc.h>
 
 #include <QPainter>
 #include <QPaintEvent>
 #include <QWidget>
 #include <QImage>
+
 
 
 Helper::Helper()
@@ -17,7 +19,7 @@ Helper::Helper()
     gradient.setColorAt(0.0, Qt::white);
     gradient.setColorAt(1.0, QColor(0xff, 0xff, 0xff));
 
-    myImage = QImage(600,600,QImage::Format_RGB32);
+    myImage = QImage(WINDOW_WIDTH,WINDOW_HEIGHT,QImage::Format_RGB32);
     background = qRgb(0,0,0);
     path = qRgb(255,255,255);
     solverPath = qRgb(0,0,255);
@@ -48,6 +50,7 @@ void Helper::paint(QPainter *painter, QPaintEvent *event, int elapsed, short *is
     //printf("First loop\n"); 
     srand(time(NULL));
     genMaze();
+    trueFirst = 0;
     mySolver.x = 0;
     mySolver.y = 0;
     mySolver.last_dir = 0;
@@ -60,7 +63,9 @@ void Helper::paint(QPainter *painter, QPaintEvent *event, int elapsed, short *is
   {
     for (int i=0; i < 2; i++)
     {
+      //printf("Solving 0 \n");
       solve(0);
+      //printf("Solving 1 \n");
       solve(1);
     }
   }
@@ -103,12 +108,12 @@ void Helper::move(Point *p, Vel *v)
 {
   //printf("%d %d\n",v->x,v->y);
   p->x = p->x + v->x; 
-  if(p->x >= 600 || p->x < 0)
+  if(p->x >= WINDOW_WIDTH || p->x < 0)
   {
     v->x = -v->x + v->x*0.5;
-    if(p->x >= 600)
+    if(p->x >= WINDOW_WIDTH)
     {
-      p->x = 600;
+      p->x = WINDOW_WIDTH;
     }
     if(p->x < 0 )
     {
@@ -118,12 +123,12 @@ void Helper::move(Point *p, Vel *v)
   
   
   p->y = p->y + v->y; 
-  if(p->y >= 600 || p->y < 0)
+  if(p->y >= WINDOW_HEIGHT || p->y < 0)
   {
     v->y = -v->y + v->y*0.5;
-    if(p->y >= 600)
+    if(p->y >= WINDOW_HEIGHT)
     {
-      p->y = 600;
+      p->y = WINDOW_HEIGHT;
     }
     if(p->y < 0 )
     {
@@ -134,12 +139,17 @@ void Helper::move(Point *p, Vel *v)
 
 void Helper::genMaze()
 {
+  printf("Gen MAZE\n");
   std::stack<pixel*> myStack;
   pixel *curPixel;
   int dir;
-  for (int i=0; i < 600; i++)
+  for (int i=0; i < WINDOW_WIDTH; i++)
   {
-    for (int j=0; j < 600; j++)
+    if(trueFirst)
+    {
+      grid[i] = (pixel*)malloc(sizeof(pixel)*(WINDOW_HEIGHT));
+    }
+    for (int j=0; j < WINDOW_HEIGHT; j++)
     {
       grid[i][j].x = i;
       grid[i][j].y = j;
@@ -157,17 +167,17 @@ void Helper::genMaze()
   {
     //printf("Loop start\n");
     curPixel = myStack.top();
-    if((grid[curPixel->x][curPixel->y-2].visited || curPixel->y-2 <= 0) 
-       && (grid[curPixel->x][curPixel->y+2].visited || curPixel->y + 2 >= 600)
-       && (grid[curPixel->x-2][curPixel->y].visited || curPixel->x - 2 <= 2)
-       && (grid[curPixel->x+2][curPixel->y].visited || curPixel->x + 2 >= 600))
+    //printf("%d:%d\n", curPixel->x, curPixel->y);
+    if(   (curPixel->y - 2 <= 0 || grid[curPixel->x][curPixel->y-2].visited) 
+       && (curPixel->y + 2 >= WINDOW_HEIGHT || grid[curPixel->x][curPixel->y+2].visited)
+       && (curPixel->x - 2 <= 2 || grid[curPixel->x-2][curPixel->y].visited)
+       && (curPixel->x + 2 >= WINDOW_WIDTH || grid[curPixel->x+2][curPixel->y].visited))
     {
     //  printf("Popped\n");
       myStack.pop();
     }
     dir = (rand()%4); 
     //printf("%d\n", dir);
-    //printf("%d:%d\n", curPixel->x, curPixel->y);
     //printf("%d:%d:%d:%d\n", grid[curPixel->x][curPixel->y-2].visited, grid[curPixel->x][curPixel->y+2].visited, grid[curPixel->x-2][curPixel->y].visited, grid[curPixel->x+2][curPixel->y].visited);
     curPixel->visited = 1;
     // jumping 2 
@@ -183,7 +193,7 @@ void Helper::genMaze()
         myStack.push(&grid[curPixel->x][curPixel->y-2]);
       }
     }
-    else if(dir == 1 && curPixel->x+1 < 600)
+    else if(dir == 1 && curPixel->x+2 < WINDOW_WIDTH)
     {
       if (!grid[curPixel->x+2][curPixel->y].visited)
       {
@@ -195,11 +205,11 @@ void Helper::genMaze()
         myStack.push(&grid[curPixel->x+2][curPixel->y]);
       }
     }
-    else if(dir == 2 && curPixel->y+1 < 600)
+    else if(dir == 2 && curPixel->y+2 < WINDOW_HEIGHT)
     {
       if (!grid[curPixel->x][curPixel->y+2].visited)
       {
-      	//printf("Pushed 2\n");
+   //printf("Pushed 2\n");
         grid[curPixel->x][curPixel->y+2].wall = 1;
         myImage.setPixel(curPixel->x,curPixel->y+2,path);
         grid[curPixel->x][curPixel->y+1].wall = 1;
@@ -229,10 +239,10 @@ void Helper::genMaze()
 // follow last wall
 void Helper::solve(int index)
 {
-  if((mySolver.x >= 598 && mySolver.y >= 598) ||
-      (mySolver2.x >= 598 && mySolver2.y >= 598))
+  if((mySolver.x >= WINDOW_WIDTH-2 && mySolver.y >= WINDOW_HEIGHT-2) ||
+      (mySolver2.x >= WINDOW_WIDTH-2 && mySolver2.y >= WINDOW_HEIGHT-2))
   {
-    if (mySolver2.x >= 598 && mySolver2.y >= 598)
+    if (mySolver2.x >= WINDOW_WIDTH-2 && mySolver2.y >= WINDOW_HEIGHT-2)
     {
       printf("Red First\n");
     }
@@ -363,6 +373,10 @@ void Helper::solve(int index)
 bool Helper::moveUp(int index)
 {
   //printf("Attempting Up\n");
+  if(mySolver.y <= 0)
+  {
+    return false;
+  }
   if (!grid[mySolver.x][mySolver.y-1].wall)
   {
     return false;
@@ -385,6 +399,10 @@ bool Helper::moveUp(int index)
 bool Helper::moveRight(int index)
 {
   //printf("Attempting Right\n");
+  if(mySolver.x >= WINDOW_WIDTH)
+  {
+    return false;
+  }
   if (!grid[mySolver.x+1][mySolver.y].wall)
   {
     return false;
@@ -408,6 +426,10 @@ bool Helper::moveRight(int index)
 bool Helper::moveDown(int index)
 {
   //printf("Attempting Down\n");
+  if(mySolver.y >= WINDOW_HEIGHT)
+  {
+    return false;
+  }
   if (!grid[mySolver.x][mySolver.y+1].wall)
   {
     return false;
@@ -431,6 +453,10 @@ bool Helper::moveDown(int index)
 bool Helper::moveLeft(int index)
 {
   //printf("Attempting Left\n");
+  if(mySolver.x <= 0)
+  {
+    return false;
+  }
   if (!grid[mySolver.x-1][mySolver.y].wall)
   {
     return false;
@@ -460,6 +486,10 @@ bool Helper::moveLeft(int index)
 bool Helper::moveUp2(int index)
 {
   //printf("Attempting Up\n");
+  if(mySolver2.y <= 0)
+  {
+    return false;
+  }
   if (!grid[mySolver2.x][mySolver2.y-1].wall)
   {
     return false;
@@ -482,6 +512,10 @@ bool Helper::moveUp2(int index)
 bool Helper::moveRight2(int index)
 {
   //printf("Attempting Right\n");
+  if(mySolver2.x >= WINDOW_WIDTH)
+  {
+    return false;
+  }
   if (!grid[mySolver2.x+1][mySolver2.y].wall)
   {
     return false;
@@ -505,6 +539,10 @@ bool Helper::moveRight2(int index)
 bool Helper::moveDown2(int index)
 {
   //printf("Attempting Down\n");
+  if(mySolver2.y >= WINDOW_HEIGHT)
+  {
+    return false;
+  }
   if (!grid[mySolver2.x][mySolver2.y+1].wall)
   {
     return false;
@@ -528,6 +566,10 @@ bool Helper::moveDown2(int index)
 bool Helper::moveLeft2(int index)
 {
   //printf("Attempting Left\n");
+  if(mySolver2.x <= 0)
+  {
+    return false;
+  }
   if (!grid[mySolver2.x-1][mySolver2.y].wall)
   {
     return false;

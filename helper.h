@@ -7,6 +7,9 @@
 #include <QPen>
 #include <QWidget>
 
+#define WINDOW_WIDTH 1800
+#define WINDOW_HEIGHT 900
+
 
 typedef struct
 {
@@ -46,7 +49,7 @@ public:
     void paint(QPainter *painter, QPaintEvent *event, int elapsed, short *isFirst, Point *points, Vel *velocitys);
     Point myPoints[5000];
     Vel myVels[5000];
-    pixel grid[603][603];
+    pixel *grid[WINDOW_WIDTH+3];
     solver mySolver;
     solver mySolver2;
     short isFirst = 1;
@@ -77,6 +80,7 @@ private:
     bool moveRight2(int index);
     bool moveDown2(int index);
     bool moveLeft2(int index);
+    bool trueFirst = 1;
 };
 
 #endif
